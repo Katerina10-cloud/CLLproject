@@ -80,6 +80,8 @@ res2Sig_down <- subset(res2, res2$padj < 0.01 & res2$log2FoldChange < -1)
 res3Sig_up <- subset(res3, res3$padj < 0.01 & res3$log2FoldChange > 1)
 res3Sig_down <- subset(res3, res3$padj < 0.01 & res3$log2FoldChange < -1)
 
+res3 <- subset(res3, res3$padj < 0.05)
+
 #Datasets trasformation
 # Create the new column
 res1 <- res1 %>% mutate(sig=padj<0.01)
