@@ -52,6 +52,7 @@ genes.table_name_symbols <- getBM(filters = "ensembl_gene_id", attributes= c("en
 
 genes.table_name_symbols <- merge(x = rc_Kwok3, y = genes.table_name_symbols, by.x = "ensembl_gene_id", by.y = "ensembl_gene_id", all.x = T, all.y = T )
 
+#removing dublicates
 rawCountFinal <- rawCounts_Kwok %>% group_by(external_gene_name) %>% summarise_if(is.numeric, sum)
 save(rawCounts_Kwok, file = "rawCounts_Kwok.Rdata")
 

@@ -168,9 +168,9 @@ coxdata <- merge(riskTab2, survTab,
 coxdata <- coxdata %>% remove_rownames %>% column_to_rownames(var="Row.names")
 
 #fit the Cox model independently for each gene
-res.ttt <- RegParallel(
+res.os <- RegParallel(
   data = coxdata,
-  formula = 'Surv(TTT, treatedAfter) ~ [*]',
+  formula = 'Surv(OS, died) ~ [*]',
   FUN = function(formula, data)
     coxph(formula = formula,
           data = data,
@@ -178,21 +178,22 @@ res.ttt <- RegParallel(
           singular.ok = TRUE),
   FUNtype = 'coxph',
   variables = colnames(coxdata),
-  blocksize = 76,
+  blocksize = 16,
   conflevel = 95
 )
-res.ttt <- res.ttt[!is.na(res.ttt$P),]
+res.os <- res.os[!is.na(res.os$P),]
 res.ttt
 
 # extract RFS and probe data for downstream analysis
-survplotdata <- coxdata[,c('TTT', 'treatedAfter', 'LPL', 'ZAP70')]
-colnames(survplotdata) <- c('TTT', 'treatedAfter', 'LPL', 'ZAP70')
+survplotdata <- coxdata[,c('OS', 'died', 'PDHA1')]
+colnames(survplotdata) <- c('OS', 'died', 'PDHA1')
+
 
 # set Z-scale cut-offs for high and low expression
 highExpr <- 1.0
 lowExpr <- -1.0
-survplotdata$LPL <- ifelse(survplotdata$LPL >= highExpr, 'High',
-                           ifelse(survplotdata$LPL <= lowExpr, 'Low', 'Mid'))
+survplotdata$PDHA1 <- ifelse(survplotdata$PDHA1 >= highExpr, 'High',
+                           ifelse(survplotdata$PDHA1 <= lowExpr, 'Low', 'Mid'))
 survplotdata$ZAP70 <- ifelse(survplotdata$ZAP70 >= highExpr, 'High',
                              ifelse(survplotdata$ZAP70 <= lowExpr, 'Low', 'Mid'))
 survplotdata$RXRA <- ifelse(survplotdata$RXRA >= highExpr, 'High',
@@ -205,7 +206,7 @@ survplotdata$MAFG <- ifelse(survplotdata$MAFG >= highExpr, 'High',
                             ifelse(survplotdata$MAFG <= lowExpr, 'Low', 'Mid'))
 
 # relevel the factors to have mid as the ref level
-survplotdata$LPL <- factor(survplotdata$LPL,
+survplotdata$PDHA1 <- factor(survplotdata$PDHA1,
                            levels = c('Mid', 'Low', 'High'))
 survplotdata$ZAP70 <- factor(survplotdata$ZAP70,
                              levels = c('Mid', 'Low', 'High'))
@@ -218,11 +219,11 @@ survplotdata$HIVEP3 <- factor(survplotdata$HIVEP3,
 survplotdata$MAFG <- factor(survplotdata$MAFG,
                             levels = c('Mid', 'Low', 'High'))
 
-p <- ggsurvplot(survfit(Surv(TTT, treatedAfter) ~ ZAP70,
+p <- ggsurvplot(survfit(Surv(OS, died) ~ PDHA1,
                         data = survplotdata),
                 data = survplotdata,
                 risk.table = TRUE,
-                title = "ZAP70 vs TTT",
+                title = "PDHA1 vs OS",
                 pval = TRUE,
                 ggtheme = theme_bw(), 
                 tables.theme = theme_cleantable(),

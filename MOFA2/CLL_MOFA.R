@@ -4,7 +4,7 @@ BiocManager::install("data.frame")
 BiocManager::install("org.Hs.eg.db")
 BiocManager::install("arsenal")
 aBiocManager::install("biomaRt")
-BiocManager::install("ReactomePA")
+BiocManager::install("IRanges")
 
 #Part1_Prepare MOFA model
 
@@ -13,6 +13,8 @@ library(reticulate)
 library(DESeq2)
 library(sva)
 library(MultiAssayExperiment)
+library(GenomicRanges)
+library(SummarizedExperiment)
 library(tidyverse)
 library(BiocParallel)
 options(stringsAsFactors=FALSE)
@@ -27,7 +29,7 @@ theme_set(theme_bw() + theme(axis.text = element_text(size=12),
 load("CLLdata/mofaCLL-main/data/gene.Rdata")
 load("CLLdata/mofaCLL-main/data/rna.Rdata")
 load("CLLdata/mofaCLL-main/data/meth.Rdata")
-load("CLLdata/exprMat2.Rdata")
+load("CLLdata/exprMat_mofa.Rdata")
 load("CLLdata/mofaCLL-main/data/drug.Rdata")
 load("CLLdata/mofaCLL-main/data/demographic.Rdata")
 load("CLLdata/mofaCLL-main/data/mofaOut.Rdata")
@@ -119,8 +121,8 @@ MOFAobject <- prepare_mofa(
 #reticulate::use_python
 #use_condaenv("r-reticulate", required = TRUE)
 
-MOFAobject <- run_mofa(MOFAobject, outfile="/Users/rifug/Documents/CLLproject/CLL-main/data/MOFA6_CLL.Rdata")
-save(MOFAobject, file = "MOFA4_CLL.RData")
+MOFAobject <- run_mofa(MOFAobject, outfile="Home/CLLdata/MOFA_CLL.RData")
+save(MOFAobject, file = "MOFA2_CLL.RData")
 saveRDS(MOFAobject, "MOFA2_CLL.hdf5")
 
 
@@ -372,8 +374,11 @@ plotTab <- R2list$r2_per_factor%>%
   tidyr::pivot_longer(-factor, names_to = "view", values_to = "r2") %>%
   mutate(factor = str_replace(factor,"LF","F"))
 
-#clusters <-cluster_samples(MOFAobject, k=4, factors = 5)
-#clusters
+#clustering of samples
+clusters <-cluster_samples(MOFAobject, k=2, factors = 1)
+clusters <- as.data.frame(clusters)
+clustering <- clusters[["cluster"]]
+clustering <- as.data.frame(clustering)
 
 #plot_weights_heatmap(MOFAobject)
 #plot_weights_scatter(MOFAobject, factors = 1:2)
@@ -396,13 +401,13 @@ print(p)
 
 #F3 profile
 plot_factor(MOFAobject, 
-            factors = 3, 
-            color_by = "Factor3"
+            factors = 5, 
+            color_by = "Factor5"
 )
 plot_data_heatmap(MOFAobject, 
                   view = "mRNA",
                   features=15,
-                  factor = 3,  
+                  factor = 5,  
                   denoise = TRUE,
                   cluster_rows = FALSE, cluster_cols = TRUE,
                   show_rownames = TRUE, show_colnames = FALSE,
@@ -652,8 +657,8 @@ tttList <- lapply(facList, function(x) {
   km(eachTab$value, eachTab$TTT, eachTab$treatedAfter, sprintf("%s VS TTT", x), stat = "maxstat",
      maxTime = 7, pval = pval, showTable = TRUE)
 })
-
-grid.arrange(grobs = tttList, ncol = 3)
+tttList[[3]]
+grid.arrange(grobs = tttList, ncol = 2)
 
 #KM plot for time to first treatment (TFT)
 facList <- sort(filter(resTFT, p<=0.05)$factor)
@@ -690,11 +695,11 @@ plotList[["OS"]] <- km(groupTab$subgroup, groupTab$OS, groupTab$died, "Overall s
 grid.arrange(grobs = plotList, ncol = 2)
 
 #KM plot for subgroup defined by median latent factor values of F1 and F4
-groupTab <- filter(testTab, factor %in% c("Factor1","Factor6"), !is.na(value)) %>%
+groupTab <- filter(testTab, factor %in% c("Factor1","Factor4"), !is.na(value)) %>%
   spread(key = factor, value = value) %>%
   mutate(LF1group = ifelse(Factor1 > median(Factor1), "highFactor1", "lowFactor1"),
-         LF6group = ifelse(Factor6 > median(Factor6), "highFactor6","lowFactor6")) %>%
-  mutate(subgroup = paste0(LF1group, "_",LF6group)) 
+         LF4group = ifelse(Factor4 > median(Factor4), "highFactor4","lowFactor4")) %>%
+  mutate(subgroup = paste0(LF1group, "_",LF4group)) 
 
 plotList1 <- list()
 # TTT
@@ -705,7 +710,7 @@ plotList1[["OS"]] <- km(groupTab$subgroup, groupTab$OS, groupTab$died, "Overall 
 
 grid.arrange(grobs = plotList1, ncol = 2)
 
-#Multi-variate Cox regression for Factor 4 (F6)
+#Multi-variate Cox regression for Factor 4 
 #Prepare data for multi-variate Cox regression
 survTab <- survival
 facTab <- filter(allFactors, factor == "Factor4")
@@ -841,61 +846,53 @@ explainedDT <- ggplot(plotTab, aes(x=model, y = R2)) + geom_bar(stat = "identity
 explainedDT
 
 #F1 enrichment analysis
-
 #GSEA on positive weights
 res.positive <- run_enrichment(MOFAobject, 
                                feature.sets = reactomeGS3, 
                                view = "mRNA",
-                               factor = 1,
+                               factor = 8,
                                sign = "positive"
 )
 
-plot_enrichment(res.positive,factor = 1,max.pathways = 10)
-
-
-enL1 <- plot_enrichment(MOFAobject, res.positive, factor = 1, max.pathways = 10) +
-  ylab(bquote("-log"[10]*"(adjusted "*italic("P")~"value)")) +
-  ggtitle("Pathways enriched for Factor4") + theme_half
+plot_enrichment(res.positive, factor = "Factor8", max.pathways = 20)+ ggtitle("Reactome pathway enrichment Factor8 (positive weights)")
 
 plot_enrichment_detailed(
   enrichment.results = res.positive,
-  factor = 1, 
-  max.pathways = 5
-)
+  factor = 6, 
+  max.pathways = 10
+)+ ggtitle("Reactome pathway enrichment Factor6 (positive weights)")
+
 ##GSEA on negative weights
 res.negative <- run_enrichment(MOFAobject, 
                                feature.sets = reactomeGS3, 
-                               view = "mRNA", factor = 1,
+                               view = "mRNA", factor = 8,
                                sign = "negative"
 )
-plot_enrichment(res.negative, factor = 1, max.pathways = 10)
+plot_enrichment(res.negative, factor = "Factor8", max.pathways = 10)+ ggtitle("Reactome pathway enrichment Factor8 (negative weights)")
 
 plot_enrichment_detailed(
   enrichment.results = res.negative,
-  factor = 1, 
+  factor = 6, 
   max.pathways = 10
-)
+)+ ggtitle("Reactome pathway enrichment Factor1 (negative weights)")
 
 names(res.positive)
 
-#F enrichment analysis
+#F4 enrichment analysis
 #GSEA on positive weights
 res.positive <- run_enrichment(MOFAobject, 
                                feature.sets = reactomeGS3, 
                                view = "mRNA", factor = 4,
                                sign = "positive"
 )
-plot_enrichment(res.positive, factor = "Factor4", max.pathways = 10)
+plot_enrichment(res.positive, factor = "Factor4", max.pathways = 20)+ ggtitle("Reactome pathway enrichment Factor4 (positive weights)")
 
-enL1 <- plot_enrichment(MOFAobject, res.positive, factor = 5, max.pathways = 10) +
-  ylab(bquote("-log"[10]*"(adjusted "*italic("P")~"value)")) +
-  ggtitle("Pathways enriched for Factor4") + theme_half
 
 plot_enrichment_detailed(
   enrichment.results = res.positive,
-  factor = "Factor7", 
-  max.pathways = 10
-)
+  factor = "Factor4", 
+  max.pathways = 20
+)+ ggtitle("Reactome pathway enrichment Factor1 (positive weights)")
 
 ##GSEA on negative weights
 res.negative <- run_enrichment(MOFAobject, 
@@ -903,20 +900,14 @@ res.negative <- run_enrichment(MOFAobject,
                                view = "mRNA", factor = 4,
                                sign = "negative"
 )
-plot_enrichment(res.negative, factor = "Factor4", max.pathways = 10)
+plot_enrichment(res.negative, factor = "Factor4", max.pathways = 20)+ ggtitle("Reactome pathway enrichment Factor4 (negative weights)")
 
 plot_enrichment_detailed(
   enrichment.results = res.negative,
-  factor = "Factor7", 
-  max.pathways = 6
+  factor = "Factor4", 
+  max.pathways = 10
 )
 
-res.negative <- run_enrichment(MOFAobject, 
-                               feature.sets = reactomeGS, 
-                               view = "mRNA",
-                               sign = "negative"
-)
-plot_enrichment_heatmap(res.negative)
 
 # Factor 5 Assocations with CD4, CD8 expression
 rna <- estimateSizeFactors(rna)
@@ -924,7 +915,6 @@ exprTab <- counts(rna[rowData(rna)$symbol %in% c("CD4","CD8A"),],normalized = TR
   t() %>% as_tibble(rownames = "sample") %>% 
   pivot_longer(-sample, names_to="id", values_to = "count") %>%
   mutate(symbol = rowData(rna)[id,]$symbol)
-
 
 facTab <- filter(allFactors , factor == "Factor5")
 plotTab <- left_join(exprTab, facTab, by = "sample")
@@ -1023,3 +1013,5 @@ fsea.results <- MOFA2::run_enrichment(MOFAobject,view = "mRNA", factor = 7 , alp
 enL7 <- MOFA2::plot_enrichment(MOFAobject, fsea.results, factor = 7, max.pathways = 5) +
   ylab(bquote("-log"[10]*"(adjusted "*italic("P")~"value)")) +
   ggtitle("Pathways enriched for F7") + theme_half
+
+
