@@ -22,7 +22,7 @@ metadata_Kwok <- read_excel("CLLdata/Kwok_data/metadata_Kwok.xlsx")
 #Export to Exel
 install.packages("openxlsx", dependencies=TRUE)
 library("openxlsx")
-write.xlsx(survival, file = "survival.xlsx", colnames = TRUE)
+write.xlsx(res3, file = "res3.sig_Regr_vs_Progr.xlsx", colnames = TRUE)
 
 
 metadata_Kwok <- metadata_Kwok[,-7 : -8] 

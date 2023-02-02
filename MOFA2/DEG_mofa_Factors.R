@@ -75,7 +75,7 @@ corRes.rna <- results(deRes, name = "LF4", tidy = TRUE) %>%
   dplyr::rename(logFC = log2FoldChange, t = stat, P.Value = pvalue, adj.P.Val = padj,id=row)
 
 #Heatmap of significantly correlated genes (5% FDR)
-corRes.sig <- filter(corRes.rna, adj.P.Val < 0.01)
+corRes.sig <- filter(corRes.rna, adj.P.Val < 0.05)
 exprMat <- assay(ddsSub.vst)
 plotMat <- exprMat[corRes.sig$id,]
 plotMat <- plotMat[order(corRes.sig$logFC, decreasing = TRUE),order(designMat[,"LF4"])]

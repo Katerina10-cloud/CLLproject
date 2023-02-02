@@ -2,7 +2,7 @@
 
 BiocManager::install("msigdbr")
 BiocManager::install("GenomicState")
-BiocManager::install("ReactomePA")
+BiocManager::install("reactome.db")
 BiocManager::install("AnnotationDbi")
 
 library(tidyverse)
@@ -13,7 +13,6 @@ library(pathview)
 library(org.Hs.eg.db)
 library(AnnotationDbi)
 library(GenomicState)
-library(ReactomePA)
 library(ggupset)
 
 
@@ -314,3 +313,42 @@ p2 <- cnetplot(enrNetwork2, categorySize="pvalue", foldChange=geneList2, showCat
 p2
 
 dotplot(msig_H2_gsea, title = "GSEA Hallmark Regressive vs Indolent CLL")
+
+
+##Reactome enrichment analysis##
+
+library(ReactomePA)
+
+#Reactome pathway over-representation analysis
+#Preparing unput
+geneList3 <- as.vector(res3$log2FoldChange)
+names(geneList3) <- res3$ENTREZID
+geneList3 = sort(geneList3, decreasing = TRUE)
+gene3 <- names(geneList3)
+gene3 <- names(geneList3)[abs(geneList3) < 1]
+
+res3_ReactomeORA <- enrichPathway(gene=gene3,pvalueCutoff=0.05, readable=T)
+head(summary(res3_ReactomeORA))
+
+#Visualization
+enrNetwork1 <- setReadable(res2_ReactomeORA, 'org.Hs.eg.db', 'ENTREZID')
+p1 <- cnetplot(enrNetwork1, categorySize="pvalue", foldChange=geneList2, showCategory=10, cex_label_gene = 0.6, cex_label_category = 0.8, color_category='firebrick')+ ggtitle("Reactome ORA theme network Regressive vs Indolent")
+p1
+
+dotplot(res3_ReactomeORA, showCategory=20, font.size = 10, label_format = 50, title = "Reactome ORA Regressive vs Progressive CLL")
+
+##Reactome pathway GSEA
+#Preparing input
+geneList3 <- as.vector(res3$log2FoldChange)
+names(geneList3) <- res3$ENTREZID
+geneList3= sort(geneList3, decreasing = TRUE)
+
+res3_ReactomeGSEA <- gsePathway(geneList=geneList3, pvalueCutoff=0.05, minGSSize = 10, maxGSSize = 350)
+head(summary(res3_ReactomeGSEA))
+
+#Visualization
+dotplot(res3_ReactomeGSEA, showCategory=20, font.size = 10, label_format = 50, title = "Reactome GSEA Regressive vs Progressive CLL")
+
+enrNetwork1 <- setReadable(res2_ReactomeGSEA, 'org.Hs.eg.db', 'ENTREZID')
+p1 <- cnetplot(enrNetwork1, categorySize="pvalue", foldChange=geneList2, showCategory=8, cex_label_gene = 0.6, cex_label_category = 0.8, color_category='firebrick')+ ggtitle("Reactome GSEA theme network Regressive vs Indolent")
+p1
