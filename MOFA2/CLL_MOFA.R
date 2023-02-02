@@ -375,10 +375,10 @@ plotTab <- R2list$r2_per_factor%>%
   mutate(factor = str_replace(factor,"LF","F"))
 
 #clustering of samples
-clusters <-cluster_samples(MOFAobject, k=2, factors = 1)
-clusters <- as.data.frame(clusters)
-clustering <- clusters[["cluster"]]
-clustering <- as.data.frame(clustering)
+clusters <- cluster_samples(MOFAobject, k=2, factors = 4)
+clustering_F4 <- clusters[["cluster"]]
+clustering_F4 <- as.data.frame(clustering_F4)
+save(clustering_F4, file = "clustering_F4.RData")
 
 #plot_weights_heatmap(MOFAobject)
 #plot_weights_scatter(MOFAobject, factors = 1:2)
