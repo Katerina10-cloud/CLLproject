@@ -15,10 +15,9 @@ library(AnnotationDbi)
 library(GenomicState)
 library(ggupset)
 
+#Kwok dataset
 
-load("Kwok/res1.RData")
-load("Kwok/res2.RData")
-load("Kwok/res3.RData")
+load("CLLdata/Kwok_data_DEG/Enrichment/Kwok/res1.RData")
 
 #Preparing unput
 gene_list <- res1Sig_up
@@ -351,4 +350,119 @@ dotplot(res3_ReactomeGSEA, showCategory=20, font.size = 10, label_format = 50, t
 
 enrNetwork1 <- setReadable(res2_ReactomeGSEA, 'org.Hs.eg.db', 'ENTREZID')
 p1 <- cnetplot(enrNetwork1, categorySize="pvalue", foldChange=geneList2, showCategory=8, cex_label_gene = 0.6, cex_label_category = 0.8, color_category='firebrick')+ ggtitle("Reactome GSEA theme network Regressive vs Indolent")
+p1
+
+#Enrichment analysis Nature cancer dataset MOFA2
+
+load("CLLproject/MOFA2/corRes.sigF4.RData")
+
+corRes.sig <- corRes.sig %>% relocate(symbol, .before = id)
+corRes.sig  <- corRes.sig[,-2]
+colnames(corRes.sig)[1] <- "SYMBOL"
+
+geneList <- as.vector(corRes.sig$logFC)
+names(geneList) <- corRes.sig$SYMBOL
+ids <- bitr(names(geneList), fromType = "SYMBOL", toType = "ENTREZID", OrgDb=org.Hs.eg.db)
+corRes <- merge(corRes.sig, ids, by = "SYMBOL")
+corRes <- corRes %>% relocate(ENTREZID, .before = baseMean)
+
+save(corRes, file = "corRes.sigF4.RData")
+
+#GSEA GO
+
+geneList <- as.vector(corRes$logFC)
+names(geneList) <- corRes$ENTREZID
+geneList = sort(geneList, decreasing = TRUE)
+
+F4_gseGO <- gseGO(geneList = geneList, ont = "ALL", OrgDb = org.Hs.eg.db, pvalueCutoff = 0.05,
+                    keyType = "ENTREZID", minGSSize = 3, maxGSSize = 500)
+head(summary(F4_gseGO)[,-10])
+
+enrNetwork <- setReadable(F4_gseGO, 'org.Hs.eg.db', 'ENTREZID')
+p1 <- cnetplot(enrNetwork, categorySize="pvalue", foldChange=geneList, showCategory=8, cex_label_gene = 0.6, cex_label_category = 0.8, color_category='firebrick', vertex.label.font=6)+ ggtitle("GSEA GO theme network Factor4 MOFA2")
+p1
+
+#KEGG GSEA
+
+kegg_geneList <- corRes$logFC
+names(kegg_geneList) <- corRes$ENTREZID
+kegg_geneList = sort(kegg_geneList, decreasing = TRUE)
+
+kegg_organism = "hsa"
+F4_gseKEGG <- gseKEGG(geneList = kegg_geneList, organism = kegg_organism,
+                        minGSSize = 10, maxGSSize    = 350, pvalueCutoff = 0.05, pAdjustMethod = "none",
+                        keyType = "ncbi-geneid")
+head(F4_gseKEGG)
+
+dotplot(F4_gseKEGG, showCategory=30, split=".sign", label_format = 50, font.size = 10, title = "GSEA KEGG Factor4 MOFA2") + facet_grid(.~.sign)     
+
+#ORA GO
+geneList <- as.vector(corRes$logFC)
+names(geneList) <- corRes$ENTREZID
+geneList = sort(geneList, decreasing = TRUE)
+gene <- names(geneList)
+gene <- names(geneList)[abs(geneList) > 1]
+
+F4_oraGO <- enrichGO(gene = gene, ont = "ALL", OrgDb = org.Hs.eg.db, 
+                       keyType = "ENTREZID", pvalueCutoff = 0.05, minGSSize = 10, maxGSSize = 350)
+head(F4_oraGO)
+
+#Removing redundancy of enriched GO terms
+F4_oraGO <- simplify(F4_oraGO, cutoff = 0.7, by = "p.adjust", select_fun = min,
+                       measure = "Wang", semData = NULL)
+
+dotplot(F4_oraGO, showCategory=30, label_format = 50, font.size = 12, title = "ORA GO up-regulated Factor4 MOFA2")
+
+#KEGG ORA
+kegg_gene <- names(kegg_geneList)
+kegg_gene <- names(geneList)[abs(geneList) < 1]
+F4_oraKEGG <- enrichKEGG(gene = kegg_gene, organism = kegg_organism,
+                           minGSSize = 10, maxGSSize    = 350, pvalueCutoff = 0.05, keyType = "ncbi-geneid")
+head(F4_oraKEGG)
+
+dotplot(F4_oraKEGG, showCategory=30, label_format = 50, font.size = 10, title = "KEGG ORA Factor4 MOFA2")
+
+
+#MSigDb ORA Hallmark
+
+m_hallmark <- msigdbr(species = "Homo sapiens", category = "H") 
+gene <- names(geneList)
+
+msig_H <- msigdbr(species = "Homo sapiens", category = "H") %>% 
+  dplyr::select(gs_name, entrez_gene)
+
+msigH_ora_F4 <- enricher(gene, TERM2GENE=msig_H)
+head(msigH_ora_F4)
+
+dotplot(msigH_F4, showCategory=10, label_format = 30, font.size = 10, title = "Hallmarks ORA Factor4")
+
+enrNetwork <- setReadable(msigH_F4, 'org.Hs.eg.db', 'ENTREZID')
+p1 <- cnetplot(enrNetwork, categorySize="pvalue", foldChange=geneList, showCategory=4, cex_label_gene = 0.6, cex_label_category = 0.8, color_category='firebrick', node_label="category")+ ggtitle("Hallmarks theme network F4")
+p1
+
+#MSigDb GSEA
+msigH_gsea_F4 <- GSEA(geneList, TERM2GENE = msig_H)
+head(msigH_gsea_F4)
+
+dotplot(msigH_gsea_F4, showCategory=10, label_format = 40, font.size = 10, title = "Hallmarks GSEA Factor4")
+
+#Reactome pathway ORA
+
+gene <- names(geneList)[abs(geneList) > 1]
+gene <- names(geneList)
+
+F4_ReactomeORA <- enrichPathway(gene=gene, pvalueCutoff=0.05, readable=T)
+head(summary(F4_ReactomeORA))
+
+enrNetwork <- setReadable(F4_ReactomeORA, 'org.Hs.eg.db', 'ENTREZID')
+p1 <- cnetplot(enrNetwork, categorySize="pvalue", foldChange=geneList, showCategory=3, cex_label_gene = 0.7, cex_label_category = 0.8, color_category='firebrick')+ ggtitle("Reactome ORA F4 (logFC > 1)")
+p1
+
+dotplot(F4_ReactomeORA, showCategory=20, label_format = 50, font.size = 10, title = "Reactome ORA Factor4")
+
+#Reactome pathway GSEA
+F4_ReactomeGSEA <- gsePathway(geneList=geneList, pvalueCutoff=0.05, minGSSize = 10, maxGSSize = 350)
+head(summary(F4_ReactomeGSEA))
+enrNetwork <- setReadable(F4_ReactomeGSEA, 'org.Hs.eg.db', 'ENTREZID')
+p1 <- cnetplot(enrNetwork, categorySize="pvalue", foldChange=geneList, showCategory=3, cex_label_gene = 0.7, cex_label_category = 0.8, color_category='firebrick')+ ggtitle("Reactome GSEA F4")
 p1
