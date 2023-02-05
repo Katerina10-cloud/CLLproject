@@ -3,7 +3,7 @@
 #data("MOFA2_CLL", "gene", "rna")
 load("~/CLLproject/MOFA2/MOFA2_CLL.RData")
 save(dds, file = "dds_mofa.RData")
-save(weightTab, file = "weightTab.RData")
+save(corRes.sig, file = "corRes.sigF6.RData")
 
 library(MOFA2)
 library(genefilter)
@@ -13,7 +13,6 @@ library(tidyverse)
 
 library(gridExtra)
 library(ggrepel)
-library(genefilter)
 library(ggbeeswarm)
 library(GEOquery)
 library(pheatmap)
@@ -67,10 +66,11 @@ factorMatrix <- facTab.all %>% spread(key = factor, value = value) %>%
   data.frame() %>% column_to_rownames("sample") 
 factorMatrix <- factorMatrix[colnames(ddsSub),]
 
+factorMatrix <- factorMatrix[,-1]
 designMat <- model.matrix(~1 +.,factorMatrix)
 deRes <- DESeq(ddsSub, full = designMat, betaPrior = FALSE)
 
-corRes.rna <- results(deRes, name = "LF4", tidy = TRUE) %>%
+corRes.rna <- results(deRes, name = "Factor6", tidy = TRUE) %>%
   mutate(symbol = rowData(ddsSub)[row,]$symbol) %>%
   dplyr::rename(logFC = log2FoldChange, t = stat, P.Value = pvalue, adj.P.Val = padj,id=row)
 
