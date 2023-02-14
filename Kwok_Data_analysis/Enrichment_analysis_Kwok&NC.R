@@ -1,10 +1,10 @@
 #Enrichment analysis using clusterPofiler
 
 BiocManager::install("msigdbr")
-BiocManager::install("GenomicState")
+BiocManager::install("qpcR")
 BiocManager::install("reactome.db")
 BiocManager::install("AnnotationDbi")
-
+install("rowr")
 library(tidyverse)
 library(ggplot2)
 library(clusterProfiler)
@@ -56,7 +56,7 @@ cols <- c("ENTREZID")
 #deGenes <- select(org.Hs.eg.db, keys=deGenes, columns=cols, keytype="SYMBOL")
 #deGenes<- na.omit(deGenes)
 
-geneList2 <- as.vector(res1$log2FoldChange)
+geneList1 <- as.vector(res1$log2FoldChange)
 names(geneList1) <- res1$ENTREZID
 ids <- bitr(names(geneList3), fromType = "SYMBOL", toType = "ENTREZID", OrgDb=org.Hs.eg.db)
 res3 <- merge(res3, ids, by = "SYMBOL")
@@ -67,7 +67,21 @@ save(res3, file = "Kwok/Enrichment/res3.RData")
 geneList3 <- as.vector(res3$log2FoldChange)
 names(geneList3) <- res3$ENTREZID
 # sort the list in decreasing order (required for clusterProfiler)
-geneList3 = sort(geneList3, decreasing = TRUE)
+geneList2 = sort(geneList2, decreasing = TRUE)
+
+#Merging DE gene lists
+X1 <- names(geneList1)
+X2 <- names(geneList2)
+X3 <- names(geneList3)
+library(qpcR)
+gene_clusters <- qpcR:::cbind.na(X1, X2, X3)
+gene_clusters <- as.data.frame(gene_clusters)
+gene_clusters[is.na(gene_clusters)] <- ""
+
+#create list of 3
+gc <- list(X1=X1, X2=X2, X3=X3)
+str(gc)
+
 
 #GSEA GO enrichment analysis
 res1_gseGO <- gseGO(geneList = geneList1, ont = "ALL", OrgDb = org.Hs.eg.db, 
@@ -477,3 +491,173 @@ p1 <- cnetplot(enrNetwork, categorySize="pvalue", foldChange=geneList, showCateg
 p1
 
 dotplot(F1_ReactomeGSEA, showCategory=25, label_format = 60, font.size = 8, title = "Reactome GSEA F1")
+
+
+#Biological theme comparison Kwok DE genes groups
+#create list of 3
+X1 <- names(geneList1)
+X2 <- names(geneList2)
+X3 <- names(geneList3)
+gc <- list(X1=X1, X2=X2, X3=X3)
+str(gc)
+
+#Over-expression gene clusters comparison
+#enrichGO
+gc_oraGO <- compareCluster(geneCluster = gc, fun = enrichGO, OrgDb = org.Hs.eg.db, minGSSize = 10, maxGSSize = 350, pvalueCutoff = 0.05)
+gc_oraGO <- setReadable(gc_oraGO, OrgDb = org.Hs.eg.db, keyType="ENTREZID")
+head(gc_oraGO) 
+dotplot(gc_oraGO, showCategory = NULL, label_format = 60, font.size = 12, title = "Biological theme comparison ORA GO")
+cnetplot(gc_oraGO, showCategory = NULL, categorySize="pvalue", cex_label_category = 1.2, node_label="category", )+ ggtitle("Gene-concept network ORA GO")
+
+#enrichKEGG
+kegg_organism = "hsa"
+gc_oraKEGG <- compareCluster(geneCluster = gc, fun = enrichKEGG, organism = kegg_organism,  minGSSize = 10, maxGSSize = 350, pvalueCutoff = 0.05, keyType = "ncbi-geneid")
+dotplot(gc_oraKEGG, showCategory = NULL, label_format = 60, font.size = 10, title = "Biological theme comparison ORA KEGG")
+
+#enrichPathway
+gc_oraReactomePA <- compareCluster(geneCluster = gc, fun = enrichPathway, minGSSize = 10, maxGSSize = 350, pvalueCutoff = 0.05)
+dotplot(gc_oraReactomePA, showCategory = 25, label_format = 80, font.size = 8, title = "Biological theme comparison ORA ReactomePA")
+cnetplot(gc_oraReactomePA, showCategory = 20, categorySize="pvalue", cex_label_category = 1.2, node_label="category", )+ ggtitle("Gene-concept network ORA ReactomePA")
+
+#GSEA gene clusters comparison
+#create list of 3
+X1 <- geneList1
+X2 <- geneList2
+X3 <- geneList3
+gc_gsea <- list(X1=X1, X2=X2, X3=X3)
+str(gc_gsea)
+
+#gseGO
+gc_gseaGO <- compareCluster(geneCluster = gc_gsea, fun = gseGO, OrgDb = org.Hs.eg.db, minGSSize = 10, maxGSSize = 350, pvalueCutoff = 0.05)
+gc_gseaGO <- simplify(gc_gseaGO, cutoff = 0.7, by = "p.adjust", select_fun = min,
+                      measure = "Wang", semData = NULL)
+
+#gseReactomePA
+gc_gseReactomePA <- compareCluster(geneCluster = gc_gsea, fun = gsePathway, minGSSize = 10, maxGSSize = 350, pvalueCutoff = 0.05)
+dotplot(gc_gseReactomePA, showCategory = 30, label_format = 80, font.size = 8, title = "Biological theme comparison GSEA ReactomePA")
+
+#gseKEGG
+gc_gseKEGG <- compareCluster(geneCluster = gc_gsea, fun = gseKEGG, organism = kegg_organism,  minGSSize = 10, maxGSSize = 350, pvalueCutoff = 0.05, keyType = "ncbi-geneid")
+dotplot(gc_gseKEGG, showCategory = NULL, label_format = 70, font.size = 10, title = "Biological theme comparison GSEA KEGG")
+
+
+##Biological theme comparison Kwok DEG groups & Nature cancer DEG groups associated with F1, F4, F6
+#Preparing input
+geneList_F1 <- as.vector(corRes$logFC)
+names(geneList_F1) <- corRes$ENTREZID
+geneList_F1 = sort(geneList_F1, decreasing = TRUE)
+F1 <- names(geneList_F1)
+
+#create list of 6
+X1 <- names(geneList1)
+X2 <- names(geneList2)
+X3 <- names(geneList3)
+gc <- list(X1=X1, X2=X2, X3=X3, F1=F1, F4=F4, F6=F6)
+str(gc)
+
+#Over-expression gene clusters comparison
+#enrichGO
+gc_oraGO <- compareCluster(geneCluster = gc, fun = enrichGO, OrgDb = org.Hs.eg.db, minGSSize = 10, maxGSSize = 350, pvalueCutoff = 0.05)
+gc_oraGO <- setReadable(gc_oraGO, OrgDb = org.Hs.eg.db, keyType="ENTREZID")
+head(gc_oraGO) 
+gc_oraGO <- simplify(gc_oraGO, cutoff = 0.7, by = "p.adjust", select_fun = min,
+                       measure = "Wang", semData = NULL)
+dotplot(gc_oraGO, showCategory = NULL, label_format = 80, font.size = 8, title = "Biological theme comparison ORA GO")
+
+#enrichKEGG
+kegg_organism = "hsa"
+gc_oraKEGG <- compareCluster(geneCluster = gc, fun = enrichKEGG, organism = kegg_organism,  minGSSize = 10, maxGSSize = 350, pvalueCutoff = 0.05, keyType = "ncbi-geneid")
+
+dotplot(gc_oraKEGG, showCategory = 20, label_format = 80, font.size = 7, title = "Biological theme comparison ORA KEGG")
+
+#enrichPathway
+gc_oraReactomePA <- compareCluster(geneCluster = gc, fun = enrichPathway, minGSSize = 10, maxGSSize = 350, pvalueCutoff = 0.05)
+dotplot(gc_oraReactomePA, showCategory = 20, label_format = 85, font.size = 7, title = "Biological theme comparison ORA ReactomePA")
+cnetplot(gc_oraReactomePA, showCategory = 20, categorySize="pvalue", cex_label_category = 1.2, node_label="category", )+ ggtitle("Gene-concept network ORA ReactomePA")
+
+#GSEA gene clusters comparison
+#create list of 6
+X1 <- geneList1
+X2 <- geneList2
+X3 <- geneList3
+F1 <- geneList_F1
+F4 <- geneList_F4
+F6 <- geneList_F6
+gc_gsea <- list(X2=X2, X3=X3, F1=F1)
+str(gc_gsea)
+
+#gseGO
+gc_gseaGO <- compareCluster(geneCluster = gc_gsea, fun = gseGO, OrgDb = org.Hs.eg.db, minGSSize = 10, maxGSSize = 350, pvalueCutoff = 0.05)
+gc_gseaGO <- simplify(gc_gseaGO, cutoff = 0.7, by = "p.adjust", select_fun = min,
+                      measure = "Wang", semData = NULL)
+dotplot(gc_gseaGO, showCategory = 20, label_format = 85, font.size = 7, title = "Biological theme comparison GSEA GO")
+
+#gseReactomePA
+gc_gseReactomePA <- compareCluster(geneCluster = gc_gsea, fun = gsePathway, minGSSize = 10, maxGSSize = 350, pvalueCutoff = 0.05)
+dotplot(gc_gseReactomePA, showCategory = 30, label_format = 85, font.size = 7, title = "Biological theme comparison GSEA ReactomePA")
+head(gc_gseReactomePA)
+
+regr2 <- data.frame(Entrez=names(geneList2), FC=geneList2)
+regr2 <- regr2[abs(regr2$FC) > 1,]
+regr2$othergroup[regr2$FC > 1] <- "upregulated"
+regr2$othergroup[regr2$FC < -1] <- "downregulated"
+x2_gseReactomePA <- compareCluster(Entrez~othergroup, data=regr2, fun="gseKEGG", minGSSize = 10, maxGSSize = 350)
+
+#gseKEGG
+kegg_organism = "hsa"
+gc_gseKEGG <- compareCluster(geneCluster = gc_gsea, fun = gseKEGG, organism = kegg_organism,  minGSSize = 10, maxGSSize = 350, pvalueCutoff = 0.05, keyType = "ncbi-geneid")
+dotplot(gc_gseKEGG, showCategory = NULL, label_format = 80, font.size = 10, title = "Biological theme comparison GSEA KEGG")
+
+###Functional profile comparison###
+#Filtering DE genes (up- & down- regulated)
+res2Sig_up <- subset(res2, res2$padj < 0.05 & res2$log2FoldChange > 1)
+res2Sig_down <- subset(res2, res2$padj < 0.05 & res2$log2FoldChange < 0)
+
+res3Sig_up <- subset(res3, res3$padj < 0.05 & res3$log2FoldChange > 1)
+res3Sig_down <- subset(res3, res3$padj < 0.05 & res3$log2FoldChange < 0)
+
+corResF1_up <- subset(corRes, corRes$padj < 0.05 & corRes$logFC > 0)
+corResF1_down <- subset(corRes, corRes$padj < 0.05 & corRes$logFC < 0)
+
+geneList3_up<- as.vector(res3Sig_up$log2FoldChange)
+names(geneList3_up) <- res3Sig_up$ENTREZID
+geneList3_up <- sort(geneList3_up, decreasing = TRUE)
+
+geneList3_down<- as.vector(res3Sig_down$log2FoldChange)
+names(geneList3_down) <- res3Sig_down$ENTREZID
+geneList3_down <- sort(geneList3_down, decreasing = TRUE)
+
+geneListF1_up <- as.vector(corResF1_up$logFC)
+names(geneListF1_up) <- corResF1_up$ENTREZID
+geneListF1_up <- sort(geneListF1_up, decreasing = TRUE)
+
+geneListF1_down <- as.vector(corResF1_down$logFC)
+names(geneListF1_down) <- corResF1_down$ENTREZID
+geneListF1_down <- sort(geneListF1_down, decreasing = TRUE)
+
+#create list of 6
+X2_up <- names(geneList2_up)
+X2_down <- names(geneList2_down)
+X3_up <- names(geneList3_up)
+X3_down <- names(geneList3_down)
+F1_up <- names(geneListF1_up)
+F1_down <- names(geneListF1_down)
+
+gc <- list(X2_up=X2_up, X2_down=X2_down, X3_up=X3_up, X3_down=X3_down, F1_up=F1_up, F1_down=F1_down)
+
+#ReactomePA ORA
+gc_oraReactomePA <- compareCluster(geneCluster = gc, fun = enrichPathway, minGSSize = 10, maxGSSize = 350, pvalueCutoff = 0.05)
+dotplot(gc_oraReactomePA, showCategory = 20, label_format = 90, font.size = 7, title = "Biological theme comparison ORA ReactomePA")
+
+#ReactomePA GSEA
+X2_up <- geneList2_up
+X2_down <- geneList2_down
+X3_up <- geneList3_up
+X3_down <- geneList3_down
+F1_up <- geneListF1_up
+F1_down <- geneListF1_down
+
+gc_gsea <- list(X2_up=X2_up, X2_down=X2_down, X3_up=X3_up, X3_down=X3_down, F1_up=F1_up, F1_down=F1_down)
+gc_gseReactomePA <- compareCluster(geneCluster = gc_gsea, fun = gsePathway, minGSSize = 10, maxGSSize = 350, pvalueCutoff = 0.05)
+dotplot(gc_gseReactomePA, showCategory = 30, label_format = 90, font.size = 7, title = "Biological theme comparison GSEA ReactomePA")
+
