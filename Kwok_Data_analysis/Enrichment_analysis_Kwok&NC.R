@@ -661,3 +661,11 @@ gc_gsea <- list(X2_up=X2_up, X2_down=X2_down, X3_up=X3_up, X3_down=X3_down, F1_u
 gc_gseReactomePA <- compareCluster(geneCluster = gc_gsea, fun = gsePathway, minGSSize = 10, maxGSSize = 350, pvalueCutoff = 0.05)
 dotplot(gc_gseReactomePA, showCategory = 30, label_format = 90, font.size = 7, title = "Biological theme comparison GSEA ReactomePA")
 
+
+dotplot(gseReactomePA_NC_Kwok, showCategory = 30, label_format = 80, font.size = 7, title = "Comparison GSE ReactomePA (NC & Kwok)")
+dotplot(gc_oraReactomePA, showCategory = 30, label_format = 90, font.size = 7, title = "Comparison ORA ReactomePA (NC & Kwok)")
+dotplot(gc_oraGO, showCategory = 30, label_format = 90, font.size = 8, title = "Comparison ORA GO (NC & Kwok)")
+
+gc_oraGO <- dropGO(gc_oraGO, level = NULL, term = NULL)
+gc_oraGO <- simplify(gc_oraGO,cutoff = 0.7,by = "p.adjust",select_fun = min, measure = "Wang",semData = NULL)
+

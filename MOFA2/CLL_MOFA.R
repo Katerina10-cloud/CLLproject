@@ -44,6 +44,7 @@ exprMat <- exprMat[order(sds, decreasing = T)[1:nTop],]
 exprMat4 <- as.matrix(exprMat4)
 exprMat4 <- assay(exprMat4)
 
+
 #DNA methylation array
 methData <- assays(meth)[["beta"]]
 nTop = 5000
@@ -375,7 +376,7 @@ plotTab <- R2list$r2_per_factor%>%
   mutate(factor = str_replace(factor,"LF","F"))
 
 #clustering of samples
-clusters <- cluster_samples(MOFAobject, k=2, factors = 4)
+clusters <- cluster_samples(MOFAobject, k=2, factors = 1)
 clustering_F4 <- clusters[["cluster"]]
 clustering_F4 <- as.data.frame(clustering_F4)
 save(clustering_F4, file = "clustering_F4.RData")

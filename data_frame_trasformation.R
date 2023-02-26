@@ -1,9 +1,9 @@
 library(dplyr)
 library(tidyverse)
-library('magrittr')
-library('SummarizedExperiment')
-library('devtools')
-library("usethis")
+library(magrittr)
+library(SummarizedExperiment)
+library(devtools)
+library(usethis)
 library("rtracklayer")
 load("CLLdata/Kwok_data/rc_rna_Lu.RData")
 load("CLLdata/Kwok_data/rc_Kwok.Rdata")
@@ -14,7 +14,7 @@ load("CLLdata/Kwok_data/rc_Kwok3.Rdata")
 
 nc_Kwok = (read.csv("CLLdata/Kwok_data/Normalized_counts.csv", header=FALSE, sep=",")[-1,]) #skip first row
 rc_Kwok <- rc_Kwok[,-2] #delete column
-colnames(rc_Kwok)[42] <- "SRR9140554" #change column name
+colnames(corRes)[8] <- "padj" #change column name
 save(rc_Kwok, file = "rc_Kwok.Rdata")
 
 metadata_Kwok <- read_excel("CLLdata/Kwok_data/metadata_Kwok.xlsx")
@@ -145,3 +145,22 @@ rownames(plotData) <- c("high","low","mid")
 barplot(prop.table(plotData) * 100, main = "Frequency of gene mutations (%)",
         col = rainbow(3), legend.text = rownames(plotData), args.legend = list(x = "topright", inset = c(0.80, 0)))
 
+#Merge multiple dataframes
+library(tidyverse)
+#put all data frames into list
+DEG_list <- list(res1, res2, res3)
+
+#merge all data frames in list
+DEG_list %>% reduce(full_join, by='SYMBOL')
+DEG_Kwok_merged <- Reduce(function(x, y) merge(x, y, all=TRUE), DEG_list) 
+
+#Remove dublicates by single column
+DEG_Kwok <- DEG_Kwok_merged[!duplicated(DEG_Kwok_merged$SYMBOL), ]
+DEG_Kwok1 <- DEG_Kwok %>% remove_rownames %>% column_to_rownames(var="SYMBOL")
+
+DEG_3groups_Kwok <- merge(DEG_Kwok1, expMatrix_Kwok, by = "row.names")
+DEG_3groups_Kwok <- DEG_3groups_Kwok[,-2:-8] #delete column
+DEG_3groups_Kwok <- DEG_3groups_Kwok %>% remove_rownames %>% column_to_rownames(var="Row.names")
+
+DEG_Kwok_3groups <- t(scale(t(DEG_3groups_Kwok)))
+save(DEG_Kwok_3groups, file = "DEG_Kwok_3groups.RData")
