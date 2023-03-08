@@ -164,3 +164,5 @@ DEG_3groups_Kwok <- DEG_3groups_Kwok %>% remove_rownames %>% column_to_rownames(
 
 DEG_Kwok_3groups <- t(scale(t(DEG_3groups_Kwok)))
 save(DEG_Kwok_3groups, file = "DEG_Kwok_3groups.RData")
+
+

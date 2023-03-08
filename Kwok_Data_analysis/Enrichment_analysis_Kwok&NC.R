@@ -1,10 +1,10 @@
 #Enrichment analysis using clusterPofiler
 
-BiocManager::install("msigdbr")
+BiocManager::install("RCy3")
 BiocManager::install("qpcR")
 BiocManager::install("reactome.db")
 BiocManager::install("AnnotationDbi")
-install("rowr")
+
 library(tidyverse)
 library(ggplot2)
 library(clusterProfiler)
@@ -662,10 +662,19 @@ gc_gseReactomePA <- compareCluster(geneCluster = gc_gsea, fun = gsePathway, minG
 dotplot(gc_gseReactomePA, showCategory = 30, label_format = 90, font.size = 7, title = "Biological theme comparison GSEA ReactomePA")
 
 
-dotplot(gseReactomePA_NC_Kwok, showCategory = 30, label_format = 80, font.size = 7, title = "Comparison GSE ReactomePA (NC & Kwok)")
-dotplot(gc_oraReactomePA, showCategory = 30, label_format = 90, font.size = 7, title = "Comparison ORA ReactomePA (NC & Kwok)")
-dotplot(gc_oraGO, showCategory = 30, label_format = 90, font.size = 8, title = "Comparison ORA GO (NC & Kwok)")
+
+
+dotplot(gc_gseReactomePA_2, showCategory = 25, label_format = 90, font.size = 7, title = "Comparison GSE ReactomePA (NC & Kwok)")
+dotplot(gc_oraReactomePA_2, showCategory = 30, label_format = 90, font.size = 8, title = "Comparison ORA ReactomePA (NC & Kwok)")
+dotplot(gc_oraGO_2, showCategory = 30, label_format = 80, font.size = 7, title = "Comparison ORA GO (NC & Kwok)")
 
 gc_oraGO <- dropGO(gc_oraGO, level = NULL, term = NULL)
 gc_oraGO <- simplify(gc_oraGO,cutoff = 0.7,by = "p.adjust",select_fun = min, measure = "Wang",semData = NULL)
 
+
+## create a new column for term size from BgRatio
+oraReactomePA2.results.df$term.size <- gsub("/(\\d+)", "", oraReactomePA2.results.df$BgRatio)
+
+## filter for term size to keep only term.size => 3, gene count >= 5 and subset
+oraReactomePA2.results.df <- oraReactomePA2.results.df[which(oraReactomePA2.results.df[,'term.size'] >= 2 & oraReactomePA2.results.df[,'Count'] >= 5),]
+egobp.results.df <- egobp.results.df[c("ID", "Description", "pvalue", "qvalue", "geneID")]
