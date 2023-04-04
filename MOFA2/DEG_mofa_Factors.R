@@ -60,7 +60,7 @@ ddsSub <- dds[,!is.na(dds$factor)]
 #vst
 ddsSub.vst <- varianceStabilizingTransformation(ddsSub)
 
-## Identify genes associated with CLL-PD
+## Identify genes associated with F4
 #Correlation test using DESeq2
 factorMatrix <- facTab.all %>% spread(key = factor, value = value) %>%
   data.frame() %>% column_to_rownames("sample") 
