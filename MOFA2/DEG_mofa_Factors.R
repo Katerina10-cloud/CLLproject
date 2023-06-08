@@ -28,7 +28,7 @@ library(cowplot)
 #get factor values
 facTab <- get_factors(
   MOFAobject, 
-  factors = "Factor4",
+  factors = "Factor6",
   as.data.frame = TRUE
 ) %>% as_tibble()
 
@@ -60,7 +60,7 @@ ddsSub <- dds[,!is.na(dds$factor)]
 #vst
 ddsSub.vst <- varianceStabilizingTransformation(ddsSub)
 
-## Identify genes associated with F4
+## Identify genes associated with F6
 #Correlation test using DESeq2
 factorMatrix <- facTab.all %>% spread(key = factor, value = value) %>%
   data.frame() %>% column_to_rownames("sample") 
@@ -74,15 +74,15 @@ corRes.rna <- results(deRes, name = "Factor6", tidy = TRUE) %>%
   mutate(symbol = rowData(ddsSub)[row,]$symbol) %>%
   dplyr::rename(logFC = log2FoldChange, t = stat, P.Value = pvalue, adj.P.Val = padj,id=row)
 
-#Heatmap of significantly correlated genes (5% FDR)
-corRes.sig <- filter(corRes.rna, adj.P.Val < 0.05)
+#Heatmap of significantly correlated genes (1% FDR)
+corRes.sig_F6 <- filter(corRes.rna, adj.P.Val < 0.01)
 exprMat <- assay(ddsSub.vst)
-plotMat <- exprMat[corRes.sig$id,]
-plotMat <- plotMat[order(corRes.sig$logFC, decreasing = TRUE),order(designMat[,"LF4"])]
+plotMat <- exprMat[corRes.sig_F6$id,]
+plotMat <- plotMat[order(corRes.sig_F6$logFC, decreasing = TRUE),order(designMat[,"Factor6"])]
 
 colAnno <- data.frame(row.names = colnames(exprMat),
-                      LF4 = designMat[,"LF4"])
-colnames(colAnno) <- c("CLL-PD")
+                      F6 = designMat[,"Factor6"])
+colnames(colAnno) <- c("F6")
 plotMat <- mscale(plotMat, censor = 4)
 
 breaks <- seq(-4,4,length.out = 100)
@@ -94,13 +94,19 @@ pheatmap(plotMat, scale = "none", cluster_cols = FALSE, cluster_rows = FALSE,
          show_rownames = FALSE, show_colnames = FALSE)
 
 #How many genes show significant correlation?
-nrow(corRes.sig)
+nrow(corRes.sig_F6)
 
 #percentage
-nrow(corRes.sig)/nrow(ddsSub)
+nrow(corRes.sig_F6)/nrow(ddsSub)
 
 #How many genes show up-regulation?
-nrow(filter(corRes.sig, t>0))
+nrow(filter(corRes.sig_F6, t>0))
 
 #How many genes show down-regulation?
-nrow(filter(corRes.sig, t<0))
+nrow(filter(corRes.sig_F6, t<0))
+
+
+###Gene enrichment analysis###
+#Enrichment using Hallmark genesets for all CLLs#
+
+corRes.sig_F4 <- filter(corRes, padj <= 0.01)

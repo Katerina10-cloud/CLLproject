@@ -1015,4 +1015,27 @@ enL7 <- MOFA2::plot_enrichment(MOFAobject, fsea.results, factor = 7, max.pathway
   ylab(bquote("-log"[10]*"(adjusted "*italic("P")~"value)")) +
   ggtitle("Pathways enriched for F7") + theme_half
 
+#Validate F6 in external, independent cohorts
+facTab <- get_factors(
+  MOFAobject, 
+  factors = "Factor6",
+  as.data.frame = TRUE
+) %>% as_tibble()
 
+fdtrainData <- get_data(MOFAobject)
+#unload MOFA package
+detach("package:MOFA2", unload = TRUE)
+
+#Using gene expression dataset for predicting F6
+#Prepare model
+library(glmnet)
+library(dplyr)
+y <- structure(facTab$value, names = facTab$sample)
+X <- trainData[["mRNA"]]
+X <- X[,complete.cases(X)]
+sampleOverlap <- intersect(names(y), colnames(X))
+y <- y[sampleOverlap]
+X <- X[,sampleOverlap]
+
+#remove highly correlated features
+X <- removeCorrelated(t(X), cutoff = 0.9, method = "pearson", record = FALSE)$reduced

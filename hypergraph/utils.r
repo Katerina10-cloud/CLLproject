@@ -53,7 +53,7 @@ extractVector<-function(mat){ # extracting the upper triangular into a vector
 pfdrBounds<-function(i,dat,nos,one_vec,naRec, fdr=0.1){
     library(ks)
 	  threshold_pfdr = fdr
-    n_sample_pairs = 1000
+    n_sample_pairs = 2000
     n_perm = 1
     pairID = sample(which(naRec==FALSE),n_sample_pairs)
     ## Below is not fast. Use the for loop
@@ -182,7 +182,7 @@ createLabels_unsup <- function(distMat, save=F){
   d=as.dist(distMat)
   h=hclust(d, method="average")
   label_vec=cutreeDynamic(h,distM = distMat,verbose=4,
-                                    minClusterSize = 20, # let's do 20 for yeast, 100 for human
+                                    minClusterSize = 100, # let's do 20 for yeast, 100 for human
                                     deepSplit = 1,
                                     pamStage =F)
 	K=length(unique(label_vec))-1		
@@ -263,7 +263,7 @@ GOen<-function(glist,label){
                         ,annotation="org.Hs.eg.db") # human/skin
         over.pres<-hyperGTest(params)
         sum = summary(over.pres)
-        id = sum$Size %in% 5:500
+        id = sum$Size %in% 5:350
         res[[i]] <- sum[id,]
         cat(i,"out of",k,'done.\n')
     }

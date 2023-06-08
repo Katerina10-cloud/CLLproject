@@ -1,0 +1,64 @@
+---
+title: "PCA batch RNAseq corrected datasets (Kwok & NC)
+output: html_notebook
+---
+
+```{r}
+library(DESeq2)
+library(tidyverse)
+library(sva)
+library(ggplot2)
+library(ggrepel)
+library(ggfortify)
+library(BiocParallel)
+```
+
+```{r}
+load("CLLdata/Kwok_data/rc_merged.Rdata")
+load("CLLdata/Kwok_data/metadata_merged.Rdata")
+```
+
+Run ComBat_seq on raw count data
+
+```{r}
+rc_NC_Kwok_merged <- as.matrix(rc_NC_Kwok_merged)
+corrected_data = ComBat_seq(counts = rc_NC_Kwok_merged, batch = metadata_merged$batch, group = NULL)
+corrected_data <- as.data.frame(corrected_data)
+```
+
+DESeq2 normalization and vst
+
+```{r}
+## Create DESeq2Dataset object
+dds <- DESeqDataSetFromMatrix(countData = corrected_data, colData = metadata_merged, design = ~ CLLtype)
+```
+
+```{r}
+#Pre-filter the genes which have low counts
+dds <- dds[rowSums(counts(dds)) >= 10,]
+```
+
+```{r}
+#Generate normalized counts
+dds <- estimateSizeFactors(dds)
+dds.vst<-DESeq2::varianceStabilizingTransformation(dds)
+exp_merged_corrected <- SummarizedExperiment::assay(dds.vst)
+exp_merged_corrected <- as.data.frame(exp_merged_corrected)
+```
+
+PCA plot
+
+```{r}
+expMerged_corrected <- exp_merged_corrected
+expMerged_corrected <- t(expMerged_corrected)
+
+pca <- prcomp(expMerged_corrected)
+summary(pca)
+autoplot(pca, data = expMerged_corrected)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.

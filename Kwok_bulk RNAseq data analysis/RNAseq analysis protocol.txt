@@ -1,0 +1,137 @@
+####################################
+#    RNAseq analysis pipeline      #
+####################################
+
+# Installing and Configuring SRA Toolkit #
+wget https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/3.0.1/sratoolkit.3.0.1-ubuntu64.tar.gz
+
+#Extract the contents of the tar file
+tar -vxzf sratoolkit.tar.gz
+
+# Downloading public data #
+mkdir sra
+# one run:
+/home/katiasen89/sratoolkit.3.0.1-ubuntu64/bin/prefetch SRR9140511 SRR9140512 SRR9140513 SRR9140514 --output-directory /home/katiasen89/fastq/raw
+
+# list of runs:
+/home/katiasen89/sratoolkit.3.0.1-ubuntu64/bin/prefetch --option-file SraAccList.txt –output-directory ./fastq/raw
+
+# Download metadata associated with SRA data
+SraRunTable.txt 
+
+### Extracting FastQ files ###
+cd fastq/raw
+/home/katiasen89/sratoolkit.3.0.1-ubuntu64/bin/fasterq-dump /home/katiasen89/fastq/raw/SRR9140506 --outdir /home/katiasen89/fastq/raw
+
+head SRR9140505_1.fastq
+
+### Quality control of the reads FastQC and Trimming ###
+sudo apt-get update
+sudo apt-get -y install fastqc
+
+cd fastq/raw
+fastqc -t 2 -o /home/katiasen89/fastq/raw SRR9140506_1.fastq  SRR9140506_2.fastq SRR9140515_1.fastq  SRR9140515_2.fastq 
+
+#Cutadapt for Trimming#
+mkdir fastq/trimmed/qc
+cd fastq
+cutadapt \
+-j 2 \
+-m 35 \
+-a AGATCGGAAGAG \
+-A AGATCGGAAGAG \
+-o trimmed/SRR9140515.R1.fastq \
+-p trimmed/SRR9140515.R2.fastq \
+raw/SRR9140515_1.fastq \
+raw/SRR9140515_2.fastq \
+>trimmed/SRR9140515.cutadapt.log 
+
+fastqc -t 2 -o trimmed/qc trimmed/SRR9140505.R1.fastq SRR9140505.R2.fastq
+
+#Filtered reads of length ≥35 bp were retained for subsequent steps of the analysis.
+
+##############################
+  #Download and index genome#
+##############################
+
+https://www.ensembl.org/Homo_sapiens/Info/Index
+
+mkdir star_index
+
+# Download Genome Assembly #Ensembl#
+wget https://ftp.ensembl.org/pub/release108/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna_sm.primary_assembly.fa.gz 
+
+# Download Genome Annotation #Ensembl#
+wget https://ftp.ensembl.org/pub/release108/gtf/homo_sapiens/Homo_sapiens.GRCh38.108.gtf.gz
+
+# Download Genome Assembly and Genome Annotation# #Gene code#
+wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_35/GRCh38.primary_assembly.genome.fa.gz
+wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_35/gencode.v35.primary_assembly.annotation.gtf.gz
+
+#unzip files
+gunzip *.gz 
+
+### Generate Genome index (STAR) ### necessary at least 32 Gb RAM
+
+STAR \
+ --runThreadN 16 \
+--runMode genomeGenerate \
+--genomeDir star_index \
+--genomeFastaFiles star_index/GRCh38.primary_assembly.genome.fa \
+--sjdbGTFfile star_index/gencode.v35.primary_assembly.annotation.gtf \
+--sjdbOverhang 99
+
+##### Aligning the reads with STAR (10 min for 1 sample)#####
+
+STAR \
+--runThreadN 16 \
+--genomeDir /home/katiasen89/star_index \
+--readFilesIn /home/katiasen89/fastq/trimmed/SRR9140515.R1.fastq /home/katiasen89/fastq/trimmed/SRR9140515.R2.fastq \
+--outFileNamePrefix /home/katiasen89/fastq/aligned/SRR9140515 \
+--outSAMtype BAM SortedByCoordinate
+
+
+sudo apt-get update -y
+sudo apt-get install -y samtools
+
+#creating an index file "bai"#
+samtools index \
+  fastq/aligned/SRR9140505Aligned.sortedByCoord.out.bam
+
+#collecting statistics from BAM files#
+samtools stats \
+  -d \
+  fastq/aligned/SRR9140505Aligned.sortedByCoord.out.bam \
+> fastq/aligned/qc/SRR9140505.samtools.stats
+
+samtools flagstat \
+   fastq/aligned/SRR9140505Aligned.sortedByCoord.out.bam \
+> fastq/aligned/qc/SRR9140505.samtools.flagstat
+
+###  Preparing count matrices from BAM files  ###
+     #Counting with featureCounts in Rsubread or SourceForge Subread#
+
+sudo apt-get update
+sudo apt-get install subread
+
+featureCounts -p -O -T 8 -a  star_index/gencode.v35.primary_assembly.annotation.gtf  -o fastq/aligned/SRR9140515_Counts.txt fastq/aligned/SRR9140515_aligned.bam
+
+In this command…
+
+    -p species that fragments (or templates) will be counted instead of reads. This is only applicable for paired-end reads.
+    -O assigns reads to all their overlapping meta-features.
+    -T specifies the number (n) of threads to be used.
+    -a is the genome annotation file (gencode.v35.primary_assembly.annotation.gtf ).
+    -o specifies the name of the output file, which includes the read counts (SRR9140505_Counts.txt).
+    SRR9140505_aligned.bam is an alignment file: in this file, the reads we want to count are aligned to the same genome as the annotation file.
+
+#featureCounts output#
+The output of this tool is 2 files, a count matrix and a summary file that tabulates how many the reads were “assigned” or counted and the reason they remained “unassigned”.
+
+less fastq/aligned/SRR9140505_Counts.txt.summary
+less fastq/aligned/SRR9140505_Counts.txt 
+
+#Cleaning up the featureCounts matrix# #extract the columns that we are interested in#
+
+cut -f1,7 fastq/aligned/SRR9140515_Counts.txt > fastq/aligned/SRR9140515_Counts.Rmatrix.txt
+

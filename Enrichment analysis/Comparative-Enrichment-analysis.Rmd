@@ -1,0 +1,341 @@
+---
+title: "Comparative Enrichment analysis with clusterProfiler"
+output: html_notebook
+---
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(clusterProfiler)
+library(enrichplot)
+library(pathview)
+library(org.Hs.eg.db)
+library(AnnotationDbi)
+library(GenomicState)
+library(ReactomePA)
+```
+## Functional profile comparison Kwok DES
+```{r}
+#Filtering DE genes (up- & down- regulated)
+res1Sig_up <- subset(res1, res1$padj < 0.05 & res1$log2FoldChange > 1)
+res1Sig_down <- subset(res1, res1$padj < 0.05 & res1$log2FoldChange < 0)
+
+res2Sig_up <- subset(res2, res2$padj < 0.05 & res2$log2FoldChange > 1)
+res2Sig_down <- subset(res2, res2$padj < 0.05 & res2$log2FoldChange < 0)
+
+res3Sig_up <- subset(res3, res3$padj < 0.05 & res3$log2FoldChange > 1)
+res3Sig_down <- subset(res3, res3$padj < 0.05 & res3$log2FoldChange < 0)
+```
+Preparing input
+```{r}
+geneList1_up<- as.vector(res1Sig_up$log2FoldChange)
+names(geneList1_up) <- res1Sig_up$ENTREZID
+geneList1_up <- sort(geneList1_up, decreasing = TRUE)
+
+geneList1_down<- as.vector(res1Sig_down$log2FoldChange)
+names(geneList1_down) <- res1Sig_down$ENTREZID
+geneList1_down <- sort(geneList1_down, decreasing = TRUE)
+
+geneList2_up<- as.vector(res2Sig_up$log2FoldChange)
+names(geneList2_up) <- res2Sig_up$ENTREZID
+geneList2_up <- sort(geneList2_up, decreasing = TRUE)
+
+geneList2_down<- as.vector(res2Sig_down$log2FoldChange)
+names(geneList2_down) <- res2Sig_down$ENTREZID
+geneList2_down <- sort(geneList2_down, decreasing = TRUE)
+
+geneList3_up<- as.vector(res3Sig_up$log2FoldChange)
+names(geneList3_up) <- res3Sig_up$ENTREZID
+geneList3_up <- sort(geneList3_up, decreasing = TRUE)
+
+geneList3_down<- as.vector(res3Sig_down$log2FoldChange)
+names(geneList3_down) <- res3Sig_down$ENTREZID
+geneList3_down <- sort(geneList3_down, decreasing = TRUE)
+```
+
+Create list of gene clusters GSEA GO
+```{r}
+X1_up <- geneList1_up
+X1_down <- geneList1_down
+X2_up <- geneList2_up
+X2_down <- geneList2_down
+X3_up <- geneList3_up
+X3_down <- geneList3_down
+```
+```{r}
+gc_gsea <- list(X1_up=X1_up, X1_down=X1_down, X2_up=X2_up, X2_down=X2_down, X3_up=X3_up, X3_down=X3_down)
+```
+Compare gene clusters
+```{r}
+#GSEA GO
+gc_gseGO <- compareCluster(geneCluster = gc_gsea, fun = gseGO, OrgDb = org.Hs.eg.db, minGSSize = 10, maxGSSize = 350, pvalueCutoff = 0.05)
+```
+```{r}
+gc_gseGO <- setReadable(gc_gseGO, 'org.Hs.eg.db', 'ENTREZID')
+summary(gc_gseGO)
+```
+Output results from Gsea GO analysis to a table
+```{r}
+cluster_summary <- data.frame(gc_gseGO)
+library("openxlsx")
+write.xlsx(cluster_summary, file = "Gsea_GO_Kwok.xlsx", colnames = TRUE)
+```
+ReactomePA ORA
+```{r}
+X1_up <- names(geneList1_up)
+X1_down <- names(geneList1_down)
+X2_up <- names(geneList2_up)
+X2_down <- names(geneList2_down)
+X3_up <- names(geneList3_up)
+X3_down <- names(geneList3_down)
+```
+```{r}
+gc <- list(X1_up=X1_up, X1_down=X1_down, X2_up=X2_up, X2_down=X2_down, X3_up=X3_up, X3_down=X3_down)
+```
+```{r}
+gc_oraReactomePA <- compareCluster(geneCluster = gc, fun = enrichPathway, minGSSize = 10, maxGSSize = 350, pvalueCutoff = 0.05, readable = TRUE)
+```
+```{r}
+gc_oraReactomePA <- setReadable(gc_oraReactomePA, OrgDb = org.Hs.eg.db, 'ENTREZID')
+summary(gc_oraReactomePA)
+```
+```{r}
+cluster_summary <- data.frame(gc_oraReactomePA)
+write.xlsx(cluster_summary, file = "ReactomePA_ora_Kwok.xlsx", colnames = TRUE)
+```
+
+## Functional profile comparison Nature Cancer DES (F1, F4, F6)
+```{r}
+corResF1_up <- subset(corRes, corRes$padj < 0.05 & corRes$logFC > 0)
+corResF1_down <- subset(corRes, corRes$padj < 0.05 & corRes$logFC < 0)
+```
+```{r}
+corResF4_up <- subset(corRes, corRes$padj < 0.05 & corRes$logFC > 0)
+corResF4_down <- subset(corRes, corRes$padj < 0.05 & corRes$logFC < 0)
+```
+```{r}
+corResF6_up <- subset(corRes, corRes$padj < 0.05 & corRes$logFC > 0)
+corResF6_down <- subset(corRes, corRes$padj < 0.05 & corRes$logFC < 0)
+```
+```{r}
+geneListF1_up <- as.vector(corResF1_up$logFC)
+names(geneListF1_up) <- corResF1_up$ENTREZID
+geneListF1_up <- sort(geneListF1_up, decreasing = TRUE)
+```
+```{r}
+geneListF1_down <- as.vector(corResF1_down$logFC)
+names(geneListF1_down) <- corResF1_down$ENTREZID
+geneListF1_down <- sort(geneListF1_down, decreasing = TRUE)
+```
+```{r}
+geneListF4_up <- as.vector(corResF4_up$logFC)
+names(geneListF4_up) <- corResF4_up$ENTREZID
+geneListF4_up <- sort(geneListF4_up, decreasing = TRUE)
+```
+```{r}
+geneListF4_down <- as.vector(corResF4_down$logFC)
+names(geneListF4_down) <- corResF4_down$ENTREZID
+geneListF4_down <- sort(geneListF4_down, decreasing = TRUE)
+```
+```{r}
+geneListF6_up <- as.vector(corResF6_up$logFC)
+names(geneListF6_up) <- corResF6_up$ENTREZID
+geneListF6_up <- sort(geneListF6_up, decreasing = TRUE)
+```
+```{r}
+geneListF6_down <- as.vector(corResF6_down$logFC)
+names(geneListF6_down) <- corResF6_down$ENTREZID
+geneListF6_down <- sort(geneListF6_down, decreasing = TRUE)
+```
+```{r}
+F1_up <- geneListF1_up
+F1_down <- geneListF1_down
+F4_up <- geneListF4_up
+F4_down <- geneListF4_down
+F6_up <- geneListF6_up
+F6_down <- geneListF6_down
+```
+```{r}
+gc_gse <- list(F1_up=F1_up, F1_down=F1_down, F4_up=F4_up, F4_down=F4_down, F6_up=F6_up, F6_down=F6_down)
+```
+```{r}
+gc_gseReactomePA <- compareCluster(geneCluster = gc_gse, fun = gsePathway, minGSSize = 10, maxGSSize = 350, pvalueCutoff = 0.05)
+```
+```{r}
+gc_gseReactomePA <- setReadable(gc_gseReactomePA, 'org.Hs.eg.db', 'ENTREZID')
+summary(gc_gseReactomePA)
+```
+```{r}
+cluster_summary <- data.frame(gc_gseReactomePA)
+write.xlsx(cluster_summary, file = "ReactomePA_gse_NC.xlsx", colnames = TRUE)
+```
+ReactomePA ORA
+```{r}
+F1_up <- names(geneListF1_up)
+F1_down <- names(geneListF1_down)
+F4_up <- names(geneListF4_up)
+F4_down <- names(geneListF4_down)
+F6_up <- names(geneListF6_up)
+F6_down <- names(geneListF6_down)
+```
+```{r}
+gc <- list(F1_up=F1_up, F1_down=F1_down, F4_up=F4_up, F4_down=F4_down, F6_up=F6_up, F6_down=F6_down)
+```
+```{r}
+gc_oraReactomePA <- compareCluster(geneCluster = gc, fun = enrichPathway, minGSSize = 10, maxGSSize = 350, pvalueCutoff = 0.05, readable = TRUE)
+```
+```{r}
+gc_oraReactomePA <- setReadable(gc_oraReactomePA, OrgDb = org.Hs.eg.db, 'ENTREZID')
+summary(gc_oraReactomePA)
+```
+
+ORA GO
+```{r}
+gc_oraGO <- compareCluster(geneCluster = gc, fun = enrichGO, OrgDb = org.Hs.eg.db, minGSSize = 10, maxGSSize = 350, pvalueCutoff = 0.05)
+```
+```{r}
+gc_oraGO <- setReadable(gc_oraGO, OrgDb = org.Hs.eg.db, keyType="ENTREZID")
+summary(gc_oraGO)
+```
+```{r}
+cluster_summary <- data.frame(gc_oraGO)
+write.xlsx(cluster_summary, file = "ora_GO_NC.xlsx", colnames = TRUE)
+```
+
+## Functional profile comparison Nature Cancer & Kwok DES
+```{r}
+#ReactomePA GSEA
+gc_gse_1 <- list(X1_up=X1_up, X2_up=X2_up, X3_up=X3_up, F1_down=F1_down, F4_down=F4_down, F6_up=F6_up)
+```
+```{r}
+gc_gse_2 <- list(X1_down=X1_down, X2_down=X2_down, X3_down=X3_down, F1_up=F1_up, F4_up=F4_up, F6_down=F6_down)
+```
+```{r}
+gc_gseReactomePA_1 <- compareCluster(geneCluster = gc_gse_1, fun = gsePathway, minGSSize = 10, maxGSSize = 350, pvalueCutoff = 0.05)
+```
+```{r}
+gc_gseReactomePA_2 <- compareCluster(geneCluster = gc_gse_2, fun = gsePathway, minGSSize = 10, maxGSSize = 350, pvalueCutoff = 0.05)
+```
+```{r}
+gc_gseReactomePA_1 <- setReadable(gc_gseReactomePA_1, 'org.Hs.eg.db', 'ENTREZID')
+summary(gc_gseReactomePA_1)
+```
+```{r}
+gc_gseReactomePA_2 <- setReadable(gc_gseReactomePA_2, 'org.Hs.eg.db', 'ENTREZID')
+summary(gc_gseReactomePA_2)
+```
+```{r}
+cluster_summary_1 <- data.frame(gc_gseReactomePA_1)
+write.xlsx(cluster_summary_1, file = "gseReactomePA1_NC_Kwok.xlsx", colnames = TRUE)
+
+cluster_summary_2 <- data.frame(gc_gseReactomePA_2)
+write.xlsx(cluster_summary_2, file = "gseReactomePA2_NC_Kwok.xlsx", colnames = TRUE)
+```
+ReactomePA ORA
+```{r}
+gc_ora_1 <- list(X1_up=X1_up, X2_up=X2_up, X3_up=X3_up, F1_down=F1_down, F4_down=F4_down, F6_up=F6_up)
+
+gc_ora_2 <- list(X1_down=X1_down, X2_down=X2_down, X3_down=X3_down, F1_up=F1_up, F4_up=F4_up, F6_down=F6_down)
+```
+```{r}
+gc_oraReactomePA_1 <- compareCluster(geneCluster = gc_ora_1, fun = enrichPathway, minGSSize = 10, maxGSSize = 350, pvalueCutoff = 0.05, readable = TRUE)
+```
+```{r}
+gc_oraReactomePA_2 <- compareCluster(geneCluster = gc_ora_2, fun = enrichPathway, minGSSize = 10, maxGSSize = 350, pvalueCutoff = 0.05, readable = TRUE)
+```
+```{r}
+gc_oraReactomePA_1 <- setReadable(gc_oraReactomePA_1, OrgDb = org.Hs.eg.db, 'ENTREZID')
+summary(gc_oraReactomePA_1)
+```
+```{r}
+gc_oraReactomePA_2 <- setReadable(gc_oraReactomePA_2, OrgDb = org.Hs.eg.db, 'ENTREZID')
+summary(gc_oraReactomePA_2)
+```
+```{r}
+cluster_summary_1 <- data.frame(gc_oraReactomePA_1)
+write.xlsx(cluster_summary_1, file = "oraReactomePA1_NC_Kwok.xlsx", colnames = TRUE)
+
+cluster_summary_2 <- data.frame(gc_oraReactomePA_2)
+write.xlsx(cluster_summary_2, file = "oraReactomePA2_NC_Kwok.xlsx", colnames = TRUE)
+```
+ORA GO
+```{r}
+gc_oraGO_1 <- compareCluster(geneCluster = gc_ora_1, fun = enrichGO, OrgDb = org.Hs.eg.db, minGSSize = 10, maxGSSize = 350, pvalueCutoff = 0.05)
+```
+```{r}
+gc_oraGO_2 <- compareCluster(geneCluster = gc_ora_2, fun = enrichGO, OrgDb = org.Hs.eg.db, minGSSize = 10, maxGSSize = 350, pvalueCutoff = 0.05)
+```
+```{r}
+gc_oraGO_1 <- setReadable(gc_oraGO_1, OrgDb = org.Hs.eg.db, 'ENTREZID')
+cluster_summary_1 <- data.frame(gc_oraGO_1)
+write.xlsx(cluster_summary_1, file = "oraGO1_NC_Kwok.xlsx", colnames = TRUE)
+```
+```{r}
+gc_oraGO_2 <- setReadable(gc_oraGO_2, OrgDb = org.Hs.eg.db, 'ENTREZID')
+cluster_summary_2 <- data.frame(gc_oraGO_2)
+write.xlsx(cluster_summary_2, file = "oraGO2_NC_Kwok.xlsx", colnames = TRUE)
+```
+```{r}
+gc_oraGO_1 <- simplify(gc_oraGO_1,cutoff = 0.7,by = "p.adjust",select_fun = min, measure = "Wang",semData = NULL)
+```
+```{r}
+gc_oraGO_2 <- simplify(gc_oraGO_2,cutoff = 0.7,by = "p.adjust",select_fun = min, measure = "Wang",semData = NULL)
+```
+```{r}
+summary(gc_oraGO_1)
+```
+```{r}
+summary(gc_oraGO_2)
+```
+EnrichmentMap in Cytoscape
+
+```{r}
+library(RCy3)
+```
+```{r}
+#extract a dataframe with results from object of type compareClusterResult
+oraReactomePA1.results.df <- gc_oraReactomePA_1@compareClusterResult
+```
+```{r}
+#subset columns
+oraReactomePA1.results.df <- oraReactomePA1.results.df[c("Cluster", "ID", "Description", "pvalue", "qvalue", "geneID")]
+```
+```{r}
+#format core_enrichment column
+oraReactomePA1.results.df$geneID <- gsub("/", ",",oraReactomePA1.results.df$geneID)
+```
+```{r}
+# change column headers
+colnames(oraReactomePA1.results.df) <- c("phenotype","Name", "Description","pvalue","qvalue", "genes")
+```
+```{r}
+oraReactomePA1.results.df <- oraReactomePA1.results.df %>% relocate(phenotype, .before = genes)
+```
+```{r}
+oraReactomePA1.results.df$phenotype <- as.character(oraReactomePA1.results.df$phenotype) 
+```
+```{r}
+oraReactomePA1.results.df["phenotype"][oraReactomePA1.results.df["phenotype"] == "F6_up"] <- "6"
+```
+```{r}
+oraReactomePA1.results.df$phenotype <- as.numeric(oraReactomePA1.results.df$phenotype) 
+```
+```{r}
+oraReactomePA1.results.filename <- file.path(getwd(),paste("clusterprofiler_cluster_enr_results.txt",sep="_"))
+write.table(oraReactomePA1.results.df,oraReactomePA1.results.filename,col.name=TRUE,sep="\t",row.names=FALSE,quote=FALSE)
+```
+```{r}
+cytoscapePing()  #this will tell you if you're able to successfully connect to Cytoscape or not
+```
+```{r}
+em_command = paste('enrichmentmap build analysisType="generic" ', 
+                   'pvalue=',"0.05", 'qvalue=',"0.05",
+                   'similaritycutoff=',"0.25",
+                   'coeffecients=',"JACCARD",
+                   'enrichmentsDataset1=', oraReactomePA1.results.filename,
+                   sep=" ")
+```
+```{r}
+em_network_suid <- commandsRun(em_command)
+```
+
+
